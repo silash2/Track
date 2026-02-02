@@ -89,8 +89,13 @@
       return;
     }
 
-    // Recherche insensible à la casse et aux espaces
-    const ligne = rows.find(r => r[16]?.trim().toUpperCase() === input.toUpperCase());
+    // Recherche insensible à la casse, aux espaces et aux guillemets
+    const ligne = rows.find(r => {
+      const tracking = r[16]; // colonne Q (indice 16)
+      if (!tracking) return false;
+      const clean = tracking.replace(/"/g, '').trim().toUpperCase();
+      return clean === input.toUpperCase();
+    });
 
     if (!ligne) {
       alert("Numéro de suivi non trouvé");

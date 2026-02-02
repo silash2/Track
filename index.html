@@ -1,98 +1,44 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Suivi de commande</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
-    h2 { margin-bottom: 20px; color: #333; }
-    input, button {
-      padding: 10px; font-size: 16px; margin-right: 5px; border-radius: 5px; border: 1px solid #ccc;
-    }
-    button { background: #007bff; color: white; border: none; cursor: pointer; }
-    button:hover { background: #0056b3; }
+<meta charset="utf-8">
+<title>Suivi de commande</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; }
+input, button {
+  padding: 10px; font-size: 16px; margin-right: 5px; border-radius: 5px; border: 1px solid #ccc;
+}
+button { background: #007bff; color: white; border: none; cursor: pointer; }
+button:hover { background: #0056b3; }
 
-    .suivi-container { 
-      width: 600px; margin-top: 30px; 
-      background: white; padding: 20px; border-radius: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-    }
+.suivi-container { width: 600px; margin-top: 30px; }
+.status-text { text-align: center; font-weight: bold; margin-bottom: 10px; }
 
-    .progress-wrapper {
-      position: relative;
-      height: 60px;
-      margin-top: 30px;
-    }
+.status-bar {
+  background-color: #eee;
+  height: 20px;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
 
-    .status-bar {
-      background-color: #eee;
-      height: 10px;
-      border-radius: 5px;
-      overflow: hidden;
-      position: relative;
-      margin: 20px 0;
-    }
+.progress {
+  background-color: #007bff;
+  height: 100%;
+  width: 0%;
+  transition: width 0.5s;
+  border-radius: 10px 0 0 10px;
+}
 
-    .progress {
-      background-color: #007bff;
-      height: 100%;
-      width: 0%;
-      transition: width 0.5s;
-      border-radius: 5px 0 0 5px;
-    }
+.dates {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  margin-top: 5px;
+}
+</style>
 
-    .status-text {
-      text-align: center;
-      font-weight: bold;
-      margin-bottom: 10px;
-      color: #333;
-    }
-
-    .dates {
-      display: flex;
-      justify-content: space-between;
-      font-size: 14px;
-      color: #555;
-      margin-top: -5px;
-    }
-
-    .icons {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 10px;
-    }
-
-    .icon {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      font-size: 12px;
-      color: #555;
-    }
-
-    .icon-circle {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: #ccc;
-      margin-bottom: 5px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 14px;
-    }
-
-    .icon.active .icon-circle {
-      background: #007bff;
-    }
-
-    .icon.delivered .icon-circle {
-      background: green;
-    }
-  </style>
-
-  <!-- PapaParse -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
 
@@ -102,93 +48,73 @@
 
 <div class="suivi-container" id="suiviContainer" style="display:none;">
   <div class="status-text" id="statusText">Status</div>
-  
-  <div class="progress-wrapper">
-    <div class="dates">
-      <span id="startDate">00/00/0000</span>
-      <span id="endDate">00/00/0000</span>
-    </div>
-    <div class="status-bar">
-      <div class="progress" id="progressBar"></div>
-    </div>
-    <div class="icons">
-      <div class="icon" id="iconStart">
-        <div class="icon-circle">✓</div>
-        Traitement
-      </div>
-      <div class="icon" id="iconCourier">
-        <div class="icon-circle">🚚</div>
-        En cours
-      </div>
-      <div class="icon" id="iconDelivered">
-        <div class="icon-circle">🏠</div>
-        Livré
-      </div>
-    </div>
+  <div class="status-bar">
+    <div class="progress" id="progressBar"></div>
+  </div>
+  <div class="dates">
+    <span id="startDate">--/--/----</span>
+    <span id="endDate">--/--/----</span>
   </div>
 </div>
 
 <script>
-  const urlCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRKpSm_qWcZU7uSvDDEzlN-VxhetgDfYgbT8Q4gdDfz3CiQNZprQfaLxIqj4MaEKxm2PyOMOwG_FAR0/pub?gid=1260274725&single=true&output=csv";
-  let rows = [];
+const urlCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRKpSm_qWcZU7uSvDDEzlN-VxhetgDfYgbT8Q4gdDfz3CiQNZprQfaLxIqj4MaEKxm2PyOMOwG_FAR0/pub?gid=1260274725&single=true&output=csv";
+let rows = [];
 
-  async function chargerCSV() {
-    const res = await fetch(urlCSV);
-    const text = await res.text();
-    rows = Papa.parse(text, {header: false, skipEmptyLines: true}).data;
-  }
+// Fonction pour parser jj/mm/aaaa
+function parseDateDMY(str) {
+  const [day, month, year] = str.split("/").map(Number);
+  return new Date(year, month - 1, day);
+}
 
-  function calculerProgression(dateTraitementStr, dateLivraisonStr) {
-    const today = new Date();
-    const dateTraitement = new Date(dateTraitementStr);
-    const dateLivraison = new Date(dateLivraisonStr);
+async function chargerCSV() {
+  const res = await fetch(urlCSV);
+  const text = await res.text();
+  rows = Papa.parse(text, {header: false, skipEmptyLines: true}).data;
+}
 
-    if (today.toDateString() === dateTraitement.toDateString()) return {status:"En attente", percent:0};
-    if (today >= dateLivraison) return {status:"Livré", percent:100};
+function calculerProgression(dateTraitementStr, dateLivraisonStr) {
+  const today = new Date();
+  const dateTraitement = parseDateDMY(dateTraitementStr);
+  const dateLivraison = parseDateDMY(dateLivraisonStr);
 
-    const totalDays = (dateLivraison - dateTraitement)/(1000*60*60*24);
-    const elapsedDays = (today - dateTraitement)/(1000*60*60*24);
-    const percent = Math.min(Math.max((elapsedDays / totalDays)*100, 0), 100);
+  if (today < dateTraitement) return {status: "En attente", percent: 0};
+  if (today >= dateLivraison) return {status: "Livré", percent: 100};
 
-    let status = "En cours";
-    if (elapsedDays >= 2) status = "Pris en charge par le livreur";
+  const totalDays = (dateLivraison - dateTraitement) / (1000*60*60*24);
+  const elapsedDays = (today - dateTraitement) / (1000*60*60*24);
+  const percent = Math.min(Math.max((elapsedDays / totalDays)*100, 0), 100);
 
-    return {status, percent};
-  }
+  let status = "En cours";
+  if (elapsedDays >= 2) status = "Pris en charge par le livreur";
 
-  async function chercherTracking() {
-    if (rows.length === 0) await chargerCSV();
+  return {status, percent};
+}
 
-    const input = document.getElementById("trackingInput").value.trim();
-    if (!input) { alert("Veuillez entrer un numéro de suivi"); return; }
+async function chercherTracking() {
+  if (rows.length === 0) await chargerCSV();
+  const input = document.getElementById("trackingInput").value.trim();
+  if (!input) { alert("Veuillez entrer un numéro de suivi"); return; }
 
-    const ligne = rows.find(r => {
-      const tracking = r[16];
-      if (!tracking) return false;
-      const clean = tracking.replace(/"/g,'').trim().toUpperCase();
-      return clean === input.toUpperCase();
-    });
+  const ligne = rows.find(r => {
+    const tracking = r[16];
+    if (!tracking) return false;
+    const clean = tracking.replace(/"/g,'').trim().toUpperCase();
+    return clean === input.toUpperCase();
+  });
 
-    if (!ligne) { alert("Numéro de suivi non trouvé"); return; }
+  if (!ligne) { alert("Numéro de suivi non trouvé"); return; }
 
-    const dateTraitement = ligne[5];
-    const dateLivraison = ligne[15];
-    const {status, percent} = calculerProgression(dateTraitement, dateLivraison);
+  const dateTraitement = ligne[5]; // F
+  const dateLivraison = ligne[15]; // P
+  const {status, percent} = calculerProgression(dateTraitement, dateLivraison);
 
-    document.getElementById("suiviContainer").style.display = "block";
-    document.getElementById("statusText").innerText = status + ` (${Math.round(percent)}%)`;
-    document.getElementById("progressBar").style.width = percent + "%";
-    document.getElementById("startDate").innerText = new Date(dateTraitement).toLocaleDateString();
-    document.getElementById("endDate").innerText = new Date(dateLivraison).toLocaleDateString();
-
-    // Icônes
-    document.getElementById("iconStart").classList.add("active");
-    document.getElementById("iconCourier").classList.remove("active");
-    document.getElementById("iconDelivered").classList.remove("active");
-
-    if(percent > 0) document.getElementById("iconCourier").classList.add("active");
-    if(percent >= 100) document.getElementById("iconDelivered").classList.add("active");
-  }
+  document.getElementById("suiviContainer").style.display = "block";
+  document.getElementById("statusText").innerText = status + ` (${Math.round(percent)}%)`;
+  document.getElementById("progressBar").style.width = percent + "%";
+  document.getElementById("startDate").innerText = dateTraitement;
+  document.getElementById("endDate").innerText = dateLivraison;
+}
 </script>
 
 </body>

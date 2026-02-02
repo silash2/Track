@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Suivi de commande</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h2 { margin-bottom: 10px; }
+    .suivi-container { width: 400px; margin-top: 20px; }
+    .status-bar {
+      background-color: #111; 
+      height: 30px; 
+      border-radius: 5px; 
+      overflow: hidden;
+      position: relative;
+    }
+    .progress {
+      background-color: #007bff; 
+      height: 100%; 
+      width: 0%; 
+      transition: width 0.5s;
+    }
+    .status-text {
+      position: absolute;
+      width: 100%;
+      text-align: center;
+      color: white;
+      line-height: 30px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Rechercher une commande par Tracking</h2>
+
+<input type="text" id="trackingInput" placeholder="Entrez numéro de suivi">
+<button onclick="chercherTracking()">Rechercher</button>
+
+<div class="suivi-container" id="suiviContainer" style="display:none;">
+  <div class="status-bar">
+    <div class="progress" id="progressBar"></div>
+    <div class="status-text" id="statusText">Status</div>
+  </div>
+</div>
+
+<script>
+  const urlCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRKpSm_qWcZU7uSvDDEzlN-VxhetgDfYgbT8Q4gdDfz3CiQNZprQfaLxIqj4MaEKxm2PyOMOwG_FAR0/pub?gid=1260274725&single=true&output=csv";
+  let rows = [];
+
+  async function chargerCSV() {
+    const res = await fetch(urlCSV);
+    const text = await res.text();
+    rows = text.trim().split("\n").map(r => r.split(","));
+  }
+
+  function calculerProgression(dateTraitementStr, dateLivraisonStr) {
+    const today = new Date();
+    const dateTraitement = new Date(dateTraitementStr);
+    const dateLivraison = new Date(dateLivraisonStr);
+
+    if (today.toDateString() === dateTraitement.toDateString()) return {status:"En attente", percent:0};
+    if (today >= dateLivraison) return {status:"Livré", percent:100};
+
+    const totalDays = (dateLivraison - dateTraitement)/(1000*60*60*24);
+    const elapsedDays = (today - dateTraitement)/(1000*60*60*24);
+    const percent = Math.min(Math.max((elapsedDays / totalDays)*100, 0), 100);
+
+    let status = "En cours";
+    if (elapsedDays >= 2) status = "Pris en charge par le livreur";
+
+    return {status, percent};
+  }
+
+  async function chercherTracking() {
+    if (rows.length === 0) await chargerCSV();
+
+    const input = document.getElementById("trackingInput").value.trim();
+    if (!input) {
+      alert("Veuillez entrer un numéro de suivi");
+      return;
+    }
+
+    const ligne = rows.find(r => r[16] === input); // Q = colonne 16
+    if (!ligne) {
+      alert("Numéro de suivi non trouvé");
+      return;
+    }
+
+    const dateTraitement = ligne[5]; // F
+    const dateLivraison  = ligne[15]; // P
+
+    const {status, percent} = calculerProgression(dateTraitement, dateLivraison);
+
+    document.getElementById("suiviContainer").style.display = "block";
+    const progressBar = document.getElementById("progressBar");
+    const statusText = document.getElementById("statusText");
+
+    progressBar.style.width = percent + "%";
+    statusText.innerText = status + ` (${Math.round(percent)}%)`;
+  }
+</script>
+</body>
+</html>
+

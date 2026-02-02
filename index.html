@@ -48,6 +48,10 @@
   const urlCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRKpSm_qWcZU7uSvDDEzlN-VxhetgDfYgbT8Q4gdDfz3CiQNZprQfaLxIqj4MaEKxm2PyOMOwG_FAR0/pub?gid=1260274725&single=true&output=csv";
   let rows = [];
 
+  console.log(rows[0]); // en-tête
+  console.log(rows[1]); // première ligne de données
+
+
   async function chargerCSV() {
     const res = await fetch(urlCSV);
     const text = await res.text();

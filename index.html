@@ -4,46 +4,127 @@
   <meta charset="utf-8">
   <title>Suivi de commande</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    h2 { margin-bottom: 10px; }
-    .suivi-container { width: 400px; margin-top: 20px; }
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
+    h2 { margin-bottom: 20px; color: #333; }
+    input, button {
+      padding: 10px; font-size: 16px; margin-right: 5px; border-radius: 5px; border: 1px solid #ccc;
+    }
+    button { background: #007bff; color: white; border: none; cursor: pointer; }
+    button:hover { background: #0056b3; }
+
+    .suivi-container { 
+      width: 600px; margin-top: 30px; 
+      background: white; padding: 20px; border-radius: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+
+    .progress-wrapper {
+      position: relative;
+      height: 60px;
+      margin-top: 30px;
+    }
+
     .status-bar {
-      background-color: #111; 
-      height: 30px; 
-      border-radius: 5px; 
+      background-color: #eee;
+      height: 10px;
+      border-radius: 5px;
       overflow: hidden;
       position: relative;
+      margin: 20px 0;
     }
+
     .progress {
-      background-color: #007bff; 
-      height: 100%; 
-      width: 0%; 
+      background-color: #007bff;
+      height: 100%;
+      width: 0%;
       transition: width 0.5s;
+      border-radius: 5px 0 0 5px;
     }
+
     .status-text {
-      position: absolute;
-      width: 100%;
       text-align: center;
-      color: white;
-      line-height: 30px;
       font-weight: bold;
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    .dates {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      color: #555;
+      margin-top: -5px;
+    }
+
+    .icons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+
+    .icon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 12px;
+      color: #555;
+    }
+
+    .icon-circle {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #ccc;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 14px;
+    }
+
+    .icon.active .icon-circle {
+      background: #007bff;
+    }
+
+    .icon.delivered .icon-circle {
+      background: green;
     }
   </style>
 
-  <!-- PapaParse pour parser correctement le CSV -->
+  <!-- PapaParse -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
 
-<h2>Rechercher une commande par Tracking</h2>
-
+<h2>Suivi de commande</h2>
 <input type="text" id="trackingInput" placeholder="Entrez numéro de suivi">
 <button onclick="chercherTracking()">Rechercher</button>
 
 <div class="suivi-container" id="suiviContainer" style="display:none;">
-  <div class="status-bar">
-    <div class="progress" id="progressBar"></div>
-    <div class="status-text" id="statusText">Status</div>
+  <div class="status-text" id="statusText">Status</div>
+  
+  <div class="progress-wrapper">
+    <div class="dates">
+      <span id="startDate">00/00/0000</span>
+      <span id="endDate">00/00/0000</span>
+    </div>
+    <div class="status-bar">
+      <div class="progress" id="progressBar"></div>
+    </div>
+    <div class="icons">
+      <div class="icon" id="iconStart">
+        <div class="icon-circle">✓</div>
+        Traitement
+      </div>
+      <div class="icon" id="iconCourier">
+        <div class="icon-circle">🚚</div>
+        En cours
+      </div>
+      <div class="icon" id="iconDelivered">
+        <div class="icon-circle">🏠</div>
+        Livré
+      </div>
+    </div>
   </div>
 </div>
 
@@ -54,12 +135,7 @@
   async function chargerCSV() {
     const res = await fetch(urlCSV);
     const text = await res.text();
-
-    // Utilisation de PapaParse pour parser correctement le CSV
-    rows = Papa.parse(text, {
-      header: false,       // pas de header
-      skipEmptyLines: true // ignorer les lignes vides
-    }).data;
+    rows = Papa.parse(text, {header: false, skipEmptyLines: true}).data;
   }
 
   function calculerProgression(dateTraitementStr, dateLivraisonStr) {
@@ -84,35 +160,34 @@
     if (rows.length === 0) await chargerCSV();
 
     const input = document.getElementById("trackingInput").value.trim();
-    if (!input) {
-      alert("Veuillez entrer un numéro de suivi");
-      return;
-    }
+    if (!input) { alert("Veuillez entrer un numéro de suivi"); return; }
 
-    // Recherche insensible à la casse, aux espaces et aux guillemets
     const ligne = rows.find(r => {
-      const tracking = r[16]; // colonne Q (indice 16)
+      const tracking = r[16];
       if (!tracking) return false;
-      const clean = tracking.replace(/"/g, '').trim().toUpperCase();
+      const clean = tracking.replace(/"/g,'').trim().toUpperCase();
       return clean === input.toUpperCase();
     });
 
-    if (!ligne) {
-      alert("Numéro de suivi non trouvé");
-      return;
-    }
+    if (!ligne) { alert("Numéro de suivi non trouvé"); return; }
 
-    const dateTraitement = ligne[5]; // F
-    const dateLivraison  = ligne[15]; // P
-
+    const dateTraitement = ligne[5];
+    const dateLivraison = ligne[15];
     const {status, percent} = calculerProgression(dateTraitement, dateLivraison);
 
     document.getElementById("suiviContainer").style.display = "block";
-    const progressBar = document.getElementById("progressBar");
-    const statusText = document.getElementById("statusText");
+    document.getElementById("statusText").innerText = status + ` (${Math.round(percent)}%)`;
+    document.getElementById("progressBar").style.width = percent + "%";
+    document.getElementById("startDate").innerText = new Date(dateTraitement).toLocaleDateString();
+    document.getElementById("endDate").innerText = new Date(dateLivraison).toLocaleDateString();
 
-    progressBar.style.width = percent + "%";
-    statusText.innerText = status + ` (${Math.round(percent)}%)`;
+    // Icônes
+    document.getElementById("iconStart").classList.add("active");
+    document.getElementById("iconCourier").classList.remove("active");
+    document.getElementById("iconDelivered").classList.remove("active");
+
+    if(percent > 0) document.getElementById("iconCourier").classList.add("active");
+    if(percent >= 100) document.getElementById("iconDelivered").classList.add("active");
   }
 </script>
 

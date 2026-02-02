@@ -48,10 +48,6 @@
   const urlCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRKpSm_qWcZU7uSvDDEzlN-VxhetgDfYgbT8Q4gdDfz3CiQNZprQfaLxIqj4MaEKxm2PyOMOwG_FAR0/pub?gid=1260274725&single=true&output=csv";
   let rows = [];
 
-  console.log(rows[0]); // en-tête
-  console.log(rows[1]); // première ligne de données
-
-
   async function chargerCSV() {
     const res = await fetch(urlCSV);
     const text = await res.text();
@@ -85,7 +81,9 @@
       return;
     }
 
-    const ligne = rows.find(r => r[16] === input); // Q = colonne 16
+    // Recherche insensible à la casse et aux espaces
+    const ligne = rows.find(r => r[16]?.trim().toUpperCase() === input.toUpperCase());
+
     if (!ligne) {
       alert("Numéro de suivi non trouvé");
       return;
@@ -106,4 +104,3 @@
 </script>
 </body>
 </html>
-

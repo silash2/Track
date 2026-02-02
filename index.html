@@ -29,6 +29,9 @@
       font-weight: bold;
     }
   </style>
+
+  <!-- PapaParse pour parser correctement le CSV -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
 
@@ -51,7 +54,12 @@
   async function chargerCSV() {
     const res = await fetch(urlCSV);
     const text = await res.text();
-    rows = text.trim().split("\n").map(r => r.split(","));
+
+    // Utilisation de PapaParse pour parser correctement le CSV
+    rows = Papa.parse(text, {
+      header: false,       // pas de header
+      skipEmptyLines: true // ignorer les lignes vides
+    }).data;
   }
 
   function calculerProgression(dateTraitementStr, dateLivraisonStr) {
@@ -102,5 +110,6 @@
     statusText.innerText = status + ` (${Math.round(percent)}%)`;
   }
 </script>
+
 </body>
 </html>

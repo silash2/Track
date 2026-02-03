@@ -2,17 +2,55 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Suivi de commande</title>
+<title>Suivi de commande - Fix My Kea</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-body { font-family: Arial, sans-serif; margin: 20px; }
-input, button {
-  padding: 10px; font-size: 16px; margin-right: 5px; border-radius: 5px; border: 1px solid #ccc;
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: #f4f4f4;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
 }
-button { background: #007bff; color: white; border: none; cursor: pointer; }
-button:hover { background: #0056b3; }
 
-.suivi-container { width: 600px; margin-top: 30px; }
-.status-text { text-align: center; font-weight: bold; margin-bottom: 10px; }
+.container {
+  width: 650px;
+  background: #fff;
+  padding: 30px 40px;
+  border-radius: 12px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  text-align: center;
+}
+
+h2 {
+  color: #2b7a78; /* couleur style Fix My Kea */
+  margin-bottom: 20px;
+}
+
+input, button {
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  margin: 5px;
+}
+
+button {
+  background: #3aafa9;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover { background: #2b7a78; }
+
+.status-text {
+  font-weight: bold;
+  margin-bottom: 15px;
+  color: #17252a;
+}
 
 .status-bar {
   background-color: #eee;
@@ -23,7 +61,7 @@ button:hover { background: #0056b3; }
 }
 
 .progress {
-  background-color: #007bff;
+  background-color: #3aafa9;
   height: 100%;
   width: 0%;
   transition: width 0.5s;
@@ -33,28 +71,43 @@ button:hover { background: #0056b3; }
 .dates {
   display: flex;
   justify-content: space-between;
+  margin-top: 8px;
   font-size: 14px;
-  margin-top: 5px;
+  color: #17252a;
+}
+
+.message {
+  margin-top: 15px;
+  font-size: 14px;
+  color: #d00000; /* rouge avertissement */
+}
+
+.sync-note {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #555;
 }
 </style>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-<h2>Suivi de commande</h2>
-<input type="text" id="trackingInput" placeholder="Entrez numéro de suivi">
-<button onclick="chercherTracking()">Rechercher</button>
+<div class="container">
+  <h2>Suivi de commande</h2>
+  <input type="text" id="trackingInput" placeholder="Entrez numéro de suivi">
+  <button onclick="chercherTracking()">Rechercher</button>
 
-<div class="suivi-container" id="suiviContainer" style="display:none;">
-  <div class="status-text" id="statusText">Status</div>
-  <div class="status-bar">
-    <div class="progress" id="progressBar"></div>
-  </div>
-  <div class="dates">
-    <span id="startDate"><i class="fas fa-car"></i> --/--/----</span>
-    <span id="endDate"> <i class="fas fa-house"></i> --/--/----</span>
+  <div class="suivi-container" id="suiviContainer" style="display:none;">
+    <div class="status-text" id="statusText">Status</div>
+    <div class="status-bar">
+      <div class="progress" id="progressBar"></div>
+    </div>
+    <div class="dates">
+      <span id="startDate"><i class="fas fa-car"></i> --/--/----</span>
+      <span id="endDate"><i class="fas fa-house"></i> --/--/----</span>
+    </div>
+    <div class="message" id="alertMessage"></div>
+    <div class="sync-note">Il se peut qu'il y ait un problème de synchronisation, contactez-nous si vous trouvez une incohérence.</div>
   </div>
 </div>
 
@@ -62,7 +115,6 @@ button:hover { background: #0056b3; }
 const urlCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRKpSm_qWcZU7uSvDDEzlN-VxhetgDfYgbT8Q4gdDfz3CiQNZprQfaLxIqj4MaEKxm2PyOMOwG_FAR0/pub?gid=1260274725&single=true&output=csv";
 let rows = [];
 
-// Fonction pour parser jj/mm/aaaa
 function parseDateDMY(str) {
   const [day, month, year] = str.split("/").map(Number);
   return new Date(year, month - 1, day);
@@ -79,8 +131,11 @@ function calculerProgression(dateTraitementStr, dateLivraisonStr) {
   const dateTraitement = parseDateDMY(dateTraitementStr);
   const dateLivraison = parseDateDMY(dateLivraisonStr);
 
-  if (today < dateTraitement) return {status: "En attente", percent: 0};
-  if (today >= dateLivraison) return {status: "Livré", percent: 100};
+  const diffDays = (today - dateTraitement)/(1000*60*60*24);
+  if(diffDays > 45) return {status:"Tracking expiré", percent: 0, expired: true};
+
+  if (today < dateTraitement) return {status: "En attente", percent: 0, expired: false};
+  if (today >= dateLivraison) return {status: "Livré", percent: 100, expired: false};
 
   const totalDays = (dateLivraison - dateTraitement) / (1000*60*60*24);
   const elapsedDays = (today - dateTraitement) / (1000*60*60*24);
@@ -89,7 +144,7 @@ function calculerProgression(dateTraitementStr, dateLivraisonStr) {
   let status = "En cours";
   if (elapsedDays >= 2) status = "Pris en charge par le livreur";
 
-  return {status, percent};
+  return {status, percent, expired: false};
 }
 
 async function chercherTracking() {
@@ -106,15 +161,23 @@ async function chercherTracking() {
 
   if (!ligne) { alert("Numéro de suivi non trouvé"); return; }
 
-  const dateTraitement = ligne[5]; // F
-  const dateLivraison = ligne[15]; // P
-  const {status, percent} = calculerProgression(dateTraitement, dateLivraison);
+  const dateTraitement = ligne[5];
+  const dateLivraison = ligne[15];
+
+  const {status, percent, expired} = calculerProgression(dateTraitement, dateLivraison);
 
   document.getElementById("suiviContainer").style.display = "block";
   document.getElementById("statusText").innerText = status + ` (${Math.round(percent)}%)`;
   document.getElementById("progressBar").style.width = percent + "%";
-  document.getElementById("startDate").innerText = dateTraitement;
-  document.getElementById("endDate").innerText = dateLivraison;
+  document.getElementById("startDate").innerHTML = `<i class="fas fa-car"></i> ${dateTraitement}`;
+  document.getElementById("endDate").innerHTML = `<i class="fas fa-house"></i> ${dateLivraison}`;
+
+  const alertMessage = document.getElementById("alertMessage");
+  if(expired){
+    alertMessage.innerText = "Tracking n'est plus valide, contactez-nous !";
+  } else {
+    alertMessage.innerText = "";
+  }
 }
 </script>
 
